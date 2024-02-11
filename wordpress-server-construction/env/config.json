@@ -1,0 +1,52 @@
+{
+    "notify_room_list": [
+        "000000000"
+    ],
+    "ssm_run_command": {
+        "shell_script": "kusanagi_provision.sh",
+        "pre_exec_commands": [
+            "aws s3 cp s3://{bucket}/cloud-formation/template/kusanagi/tuning/ /tmp  --recursive",
+            "aws s3 cp s3://{bucket}/cloud-formation/template/kusanagi/shell-script/kusanagi_provision.sh /tmp",
+            "curl http://169.254.169.254/latest/meta-data/instance-type > /tmp/instance-type",
+            "aws ec2 describe-instance-types --instance-types `cat /tmp/instance-type` > /tmp/instance-spec"
+        ]
+    },
+    "iam_role": "arn:aws:iam::{account_id}:role/ecsTaskKusanagiWordpressServerBuilderRole",
+    "cfn_template": "https://{bucket}.s3.ap-northeast-1.amazonaws.com/cloud-formation/template/kusanagi/main.yaml",
+    "core": {
+        "account_id": "111111111111",
+        "bucket": "cor-infra-bucket",
+        "vpc": {
+            "dev": {
+                "vpc_id": "vpc-21111111",
+                "subnets": {
+                    "A": "subnet-e222222222",
+                    "C": "subnet-0333333333",
+                    "D": "subnet-0222222222"
+                }
+            },
+            "prod": {
+                "vpc_id": "vpc-d11111111",
+                "subnets": {
+                    "A": "subnet-f1111111",
+                    "C": "subnet-f11111111",
+                    "D": "subnet-0911111111"
+                }
+            }
+        }
+    },
+    "xxxxx-light": {
+        "account_id": "70111111111",
+        "bucket": "xxxxxx-infra-bucket",
+        "vpc": {
+            "prod": {
+                "vpc_id": "vpc-6d111111",
+                "subnets": {
+                    "A": "subnet-f3111111",
+                    "C": "subnet-dc111111",
+                    "D": "subnet-021111111"
+                }
+            }
+        }
+    }
+}

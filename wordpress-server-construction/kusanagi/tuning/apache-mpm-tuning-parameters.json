@@ -1,0 +1,32 @@
+{
+    "MemoryUsagePerProcess": 40,
+    "Parameters": {
+        "512": {
+            "StartServers": 1,
+            "MinSpareThreads": 5,
+            "MaxSpareThreads": 10,
+            "ThreadsPerChild": 5,
+            "ServerLimit": 2,
+            "MaxRequestWorkers": 10,
+            "MaxConnectionsPerChild": 250
+        },
+        "4096": {
+            "StartServers": 3,
+            "MinSpareThreads": 30,
+            "MaxSpareThreads": 40,
+            "ThreadsPerChild": 10,
+            "ServerLimit": 5,
+            "MaxRequestWorkers": 50,
+            "MaxConnectionsPerChild": 250
+        },
+        "8192": {
+            "StartServers": 10,
+            "MinSpareThreads": 100,
+            "MaxSpareThreads": 110,
+            "ThreadsPerChild": 10,
+            "ServerLimit": 12,
+            "MaxRequestWorkers": 120,
+            "MaxConnectionsPerChild": 250
+        }
+    }
+}

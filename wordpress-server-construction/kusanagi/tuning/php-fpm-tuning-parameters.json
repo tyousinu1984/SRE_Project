@@ -1,0 +1,26 @@
+{
+    "MemoryUsagePerProcess": 40,
+    "Parameters": {
+        "512": {
+            "start_servers": 5,
+            "min_spare_servers": 5,
+            "max_spare_servers": 8,
+            "max_children": 10,
+            "max_requests": 250
+        },
+        "4096": {
+            "start_servers": 30,
+            "min_spare_servers": 30,
+            "max_spare_servers": 40,
+            "max_children": 50,
+            "max_requests": 250
+        },
+        "8192": {
+            "start_servers": 100,
+            "min_spare_servers": 100,
+            "max_spare_servers": 110,
+            "max_children": 120,
+            "max_requests": 250
+        }
+    }
+}

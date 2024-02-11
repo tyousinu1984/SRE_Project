@@ -1,0 +1,40 @@
+{
+    "Parameters": {
+        "512": {
+            "max_connections": "10",
+            "thread_cache_size": "12",
+            "table_cache": "10",
+            "read_buffer_size": "128K",
+            "max_allowed_packet": "1M",
+            "query_cache_size": "32M",
+            "join_buffer_size": "128K",
+            "innodb_buffer_pool_size": "128M",
+            "max_heap_table_size": "4M",
+            "tmp_table_size": "4M"
+        },
+        "4096": {
+            "max_connections": "50",
+            "thread_cache_size": "60",
+            "table_cache": "50",
+            "read_buffer_size": "512K",
+            "max_allowed_packet": "4M",
+            "query_cache_size": "128M",
+            "join_buffer_size": "512K",
+            "innodb_buffer_pool_size": "1024M",
+            "max_heap_table_size": "32M",
+            "tmp_table_size": "32M"
+        },
+        "8192": {
+            "max_connections": "200",
+            "thread_cache_size": "60",
+            "table_cache": "200",
+            "read_buffer_size": "2M",
+            "max_allowed_packet": "16M",
+            "query_cache_size": "256M",
+            "join_buffer_size": "2M",
+            "innodb_buffer_pool_size": "1024M",
+            "max_heap_table_size": "128M",
+            "tmp_table_size": "128M"
+        }
+    }
+}

@@ -1,0 +1,307 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: automatic construction of worldpress by KUSANAGI
+
+Parameters:
+  HostName:
+    Description: "Ec2 インスタンスの Name タグの値"
+    Type: String
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: "使用する VPC ID"
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: "使用するサブネットの ID"
+  SubnetId2:
+    Type: AWS::EC2::Subnet::Id
+    Description: "ALB で使用するサブネットの ID。SubnetId で指定したサブネットと同じ VPC に属し、尚且つ別のサブネットを指定する"
+  AmiId:
+    Type: String
+    Description: "使用する AMI ID"
+    Default: "ami-002cedb74d7169fa1"
+  InstanceType:
+    Description: "EC2 インスタンスの InstanceType"
+    Type: String
+    Default: t3.nano
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: "EC2 インスタンスの キーペア名"
+  VolumeSize:
+    Description: "EC2 インスタンスの EBS ボリュームサイズ"
+    Type: Number
+    Default: 30
+    MinValue: 30
+    MaxValue: 16384
+  HostZoneId:
+    Description: "使用する ホストゾーン ID"
+    Type: String
+  DomainName:
+    Description: "使用するホストゾーンのドメイン名"
+    Type: String
+  AcmCertificateArn:
+    Description: "使用する ACM Certificate の ARN。指定しなければ新たに作る"
+    Type: String
+    Default: ""
+  IamInstanceProfile:
+    Description: "使用する IAM インスタンスプロファイル"
+    Type: String
+    Default: "ec2-ssm-run-command"
+
+# 条件
+Conditions:
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+  ## AcmCertificateArn !="" の時true、= の時false
+  CreateAcmCertificate: !Equals
+    - !Ref AcmCertificateArn
+    - ""
+
+# 構築するリソース
+Resources:
+  # ------------------------------------------------------------#
+  #  SecurityGroup for ALB
+  # ------------------------------------------------------------#
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${HostName}[ALB]
+      VpcId: !Ref VPCId
+      GroupName: !Sub ${HostName}[ALB]
+      SecurityGroupIngress:
+        # pre.fuzoku.jp[ELB]からコピー
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${HostName}[ALB]
+
+  # ------------------------------------------------------------#
+  #  SecurityGroup for EC2
+  # ------------------------------------------------------------#
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${HostName}[WEB]
+      VpcId: !Ref VPCId
+      # kusanagi.core-tech.jp[WEB]
+      GroupName: !Sub ${HostName}[WEB]
+      SecurityGroupIngress:
+        # dev.core-tech.jp[WEB]からコピー
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 30.110.200.40/32
+          Description: "core-ip"
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 30.110.200.40/32
+          Description: "core-ip"
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 30.110.200.40/32
+          Description: "vpn_jp"
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 30.110.200.40/32
+          Description: "vpn_jp"
+        - IpProtocol: tcp
+          FromPort: 10050
+          ToPort: 10050
+          CidrIp: 30.110.200.40/32
+          Description: "core"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: "personal-ALB"
+      Tags:
+        - Key: Name
+          Value: !Sub ${HostName}[WEB]
+  # ------------------------------------------------------------#
+  #  EC2Instance
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance.html
+  # ------------------------------------------------------------#
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn: EC2SecurityGroup
+    Properties:
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref IamInstanceProfile
+      # IAMのIDを指定
+      ImageId: !Ref AmiId
+      # 既存の秘密キーを設定
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          # EBS設定
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp2
+            DeleteOnTermination: "true"
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Ref HostName
+        - Key: CheckZabbixSetting
+          Value: "NO"
+        - Key: CheckAlarmSetting
+          Value: "NO"
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          # CentOS 7.x 用
+          sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          sudo systemctl enable amazon-ssm-agent
+          sudo systemctl start amazon-ssm-agent
+          yum clean all
+          sed -i -e 's|http://yum.mariadb.org/10.1|http://yum.mariadb.org/10.5|g' /etc/yum.repos.d/MariaDB.repo
+          yum --enablerepo=remi,remi-php56 update -y
+
+  # ------------------------------------------------------------#
+  #  ElasticIP
+  # ------------------------------------------------------------#
+  # EIPを作成
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Ref HostName
+  # EIPをEC2に割り当てる
+  ElasticIPAssociation:
+    DependsOn: EC2Instance
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ElasticIp.AllocationId
+      InstanceId: !Ref EC2Instance
+  # ------------------------------------------------------------#
+  #  Target Group
+  # ------------------------------------------------------------#
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      # VPCを指定
+      VpcId: !Ref VPCId
+      # kusanagi-core-tech-jp-TG
+      Name: !Sub
+        - ${name}-TG
+        - { name: !Join ["-", !Split [".", !Ref HostName]] }
+      Protocol: HTTP
+      Port: 80
+      # ヘルスチェックの設定
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: traffic-port
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 30
+      Matcher:
+        HttpCode: 200
+      # 対象インスタンスを指定
+      Targets:
+        - Id: !Ref EC2Instance
+          Port: 80
+  # ------------------------------------------------------------#
+  #  Internet ALB
+  # ------------------------------------------------------------#
+  InternetALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: ALBSecurityGroup
+    Properties:
+      # kusanagi-core-tech-jp-ALB
+      Name: !Sub
+        - ${name}-ALB
+        - { name: !Join ["-", !Split [".", !Ref HostName]] }
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: false
+        - Key: idle_timeout.timeout_seconds
+          Value: 60
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref SubnetId
+        - !Ref SubnetId2
+
+  # 既存のELBにhttps用のリスナーを設定
+  ALBListenerHTTP:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: InternetALB
+    Properties:
+      # ポートを設定
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        # # ELBのターゲットグループを指定
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+        # ALBを指定
+      LoadBalancerArn: !Ref InternetALB
+
+  ALBListenerHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: InternetALB
+    Properties:
+      Port: 443
+      Protocol: HTTPS
+      # リスナーにACMで取得した証明書を適用
+      Certificates:
+        # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-conditions.html#intrinsic-function-reference-conditions-if
+        # CreateAcmCertificateはtureの時、自動作成したACMCertificateを使う、falseの時、環境変数のAcmCertificateArnを使う
+        - CertificateArn:
+            !If [
+              CreateAcmCertificate,
+              !Ref ACMCertificate,
+              !Ref AcmCertificateArn,
+            ]
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref InternetALB
+  # ------------------------------------------------------------#
+  #  Route53 Aレコード設定
+  # ------------------------------------------------------------#
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostZoneId
+      Comment: "DNS for kuusanagi ALB"
+      Name: !Ref HostName
+      Type: A
+      AliasTarget:
+        HostedZoneId: !GetAtt "InternetALB.CanonicalHostedZoneID"
+        DNSName: !GetAtt "InternetALB.DNSName"
+
+  # ------------------------------------------------------------#
+  #  ACM Certificate
+  # ------------------------------------------------------------#
+
+  # 【注意】DNS 認証用に使用するドメインが同一 AWS アカウント上の Route 53 のホストゾーンに存在する場合、DNS 認証用レコードを自動で追加する
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-resource-certificatemanager-certificate.html
+  ACMCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCertificate
+    Properties:
+      # 証明書を取得するドメイン名を設定 (パラメータで入力したドメイン名が入る)
+      DomainName: !Ref DomainName
+      # DNS検証を行うドメインを設定 (上記同様にドメイン名が入る)
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostZoneId
+      # 追加で取得したい証明書を設定
+      SubjectAlternativeNames:
+        - !Sub "*.${DomainName}"
+      # 検証方法はDNSを指定
+      ValidationMethod: DNS

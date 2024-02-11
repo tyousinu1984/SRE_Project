@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CodePipeline For ECS Fargate
+
+Parameters:
+  # [Compulsary] pipeline-name
+  PipelineName:
+    Type: String
+  # [Compulsary] ECS-cluster-name
+  # CodeCommit repository name
+  RepositoryName:
+    Type: String
+  # CodeCommit repository branch-name
+  BranchName:
+    Type: String
+    Default: "master"
+  # Name of S3 bucket for artifacts
+  ArtifactBucket:
+    Type: String
+  #  Default: "codepipeline-ap-northeast-1-124898023392"
+  CodePipelineServiceRoleArn:
+    Type: String
+  #  Default: "arn:aws:iam::840277471863:role/dev-mens-est-reserve-pipeline-role"
+  CodeBuildServiceRoleArn:
+    Type: String
+  #  Default: "arn:aws:iam::840277471863:role/codebuild-dev-mens-est-reserve-service-role"
+  # Name for buildspec file
+  BuildSpecFileName:
+    Type: String
+    Default: "buildspec.yml"
+  BuilderImage:
+    Type: String
+    Default: "aws/codebuild/amazonlinux2-x86_64-standard:3.0-20.06.15"
+  ImageRepoName:
+    Type: String
+
+Resources:
+  # CodeBuild
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        BuildSpec: !Ref BuildSpecFileName
+        Type: CODEPIPELINE
+      Environment:
+        PrivilegedMode: true
+        ComputeType: BUILD_GENERAL1_SMALL
+        #Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0-20.06.15
+        Image: !Ref BuilderImage
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Type: PLAINTEXT
+            Value: ap-northeast-1
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: "840277471863"
+          - Name: IMAGE_REPO_NAME
+            Type: PLAINTEXT
+            Value: !Ref ImageRepoName
+          - Name: IMAGE_TAG
+            Type: PLAINTEXT
+            Value: latest
+      Name: !Ref AWS::StackName
+      ServiceRole: !Ref CodeBuildServiceRoleArn
+      Cache:
+        Location: LOCAL
+        Modes:
+          - LOCAL_DOCKER_LAYER_CACHE
+        Type: LOCAL
+
+  # CodePipeLine
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !Ref CodePipelineServiceRoleArn
+      Name: !Ref PipelineName
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        # Source stage---------------------------
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: "1"
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !Ref RepositoryName
+                BranchName: !Ref BranchName
+                PollForSourceChanges: true
+              RunOrder: 1
+              OutputArtifacts:
+                - Name: SourceArtifact
+        # Build stage---------------------------
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: 1
+              # RoleArn: !Ref CodeBuildServiceRoleArn
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
