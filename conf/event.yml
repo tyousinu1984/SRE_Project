@@ -1,0 +1,30 @@
+- schedule:
+    rate: cron(30 0 ? * MON-FRI *)
+    enabled: true
+    description: 'Elasticacheの監視アラーム設定をチェック'
+    input:
+      service: "elasticache"
+- schedule:
+    rate: cron(35 0 ? * MON-FRI *)
+    enabled: true
+    description: 'RDSの監視アラーム設定をチェック'
+    input:
+      service: "rds"
+- schedule:
+    rate: cron(40 0 ? * MON-FRI *)
+    enabled: true
+    description: 'Lambdaの監視アラーム設定をチェック'
+    input:
+      service: "lambda"
+- schedule:
+    rate: cron(45 0 ? * MON-FRI *)
+    enabled: true
+    description: 'EC2の監視アラーム設定をチェック'
+    input:
+      service: "ec2"
+- schedule:
+    rate: cron(50 0 ? * MON-FRI *)
+    enabled: true
+    description: 'TargetGroupの監視アラーム設定をチェック'
+    input:
+      service: "targetgroup"
