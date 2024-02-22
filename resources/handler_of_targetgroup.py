@@ -1,8 +1,9 @@
-import json
 import os
 import sys
 import traceback
+from typing import Tuple
 
+import boto3
 from utils import application, log_handler
 
 # ロガー初期化
@@ -10,31 +11,48 @@ _LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")
 _logger = log_handler.LoggerHander(log_level=_LOG_LEVEL)
 
 
-_NAMESPACE = "AWS/ApplicationELB"
+def check_for_targetgroup(
+    account_name: str,
+    namespace: str,
+    config: dict,
+    cloudwatch_client: boto3.client,
+    elb_client: boto3.client,
+) -> Tuple[dict, dict, dict, dict]:
+    """Targetgroup のアラーム設定を確認し、自動的に適用
 
-
-def check_for_targetgroup(account_name, config, cloudwatch_client, elb_client):
-    """targetgroupのアラーム設定のチェックと自動付与
-
-    Parameters
+    パラメーター
     ----------
     account_name : str
-        アカウント名
+        AWS アカウントの名前
+    namespace : str
+        名前空間
     config : dict
         設定ファイル
-    service : str
-        AWSのサービス名
+    cloudwatch_client : boto3.client
+        CloudWatchの Boto3 クライアント
+    elb_client : boto3.client
+        Elastic Load Balancingの Boto3 クライアント
+
+    戻り値
+    -------
+    Tuple[dict,dict,dict,dict]
+        以下を表すdictのセットを含むTuple:
+        1. 間違った宛先のアラーム
+        2. 設定が間違っているアラーム
+        3. アラームのないインスタンス
+        4. アラーム設定が正常にアタッチされた
+        5. アラーム設定のアタッチに失敗した
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
 
     setting_success, setting_fail = {}, {}
-    namespace = _NAMESPACE
+
     (
         alarms_with_wrong_destination,
         alarms_with_wrong_setting,
         instances_without_alarm,
     ) = _check_alarm_for_targetgroup(namespace, config, cloudwatch_client, elb_client)
-    print(instances_without_alarm)
+
     if not (
         len(alarms_with_wrong_destination) == 0
         and len(alarms_with_wrong_setting) == 0
@@ -60,15 +78,39 @@ def check_for_targetgroup(account_name, config, cloudwatch_client, elb_client):
 
 
 ########### アラームチェック ##############
-def _check_alarm_for_targetgroup(namespace, config, cloudwatch_client, elb_client):
+def _check_alarm_for_targetgroup(
+    namespace: str,
+    config: dict,
+    cloudwatch_client: boto3.client,
+    elb_client: boto3.client,
+) -> Tuple[dict, dict, dict]:
+    """TargetGroupアラーム設定を確認
+
+    パラメーター
+    ----------
+    namespace : str
+        名前空間
+    config : dict
+        設定ファイル
+    cloudwatch_client : boto3.client
+        CloudWatch 用の Boto3 クライアント
+    elb_client : boto3.client
+        Elastic Load Balancing用の Boto3 クライアント
+
+    戻り値
+    -------
+    Tuple[dict, dict, dict]
+        以下を表すdictを含むTuple:
+        1. 宛先が間違っているアラーム
+        2. 間違った設定のアラーム、
+        3. アラームのないインスタンス
+    """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     try:
         instance_info_dict = _get_instance_info(config, elb_client)
         cloudwatch_alarm = application.get_cloudwatch_alarm(
             cloudwatch_client, namespace
         )
-        print(instance_info_dict)
-        print(cloudwatch_alarm)
         (
             alarms_with_wrong_destination,
             alarms_with_wrong_setting,
@@ -95,20 +137,20 @@ def _check_alarm_for_targetgroup(namespace, config, cloudwatch_client, elb_clien
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def _get_instance_info(config, elb_client):
-    """target_groupsの情報を取得
+def _get_instance_info(config: dict, elb_client: boto3.client) -> dict:
+    """TargerGroupに関する情報を取得
 
-    Parameters
+    パラメーター
     ----------
     config : dict
         設定ファイル
-    elb_client :
-        elbのクライアント
+    elb_client : boto3.client
+        Elastic Load Balancing 用の Boto3 クライアント
 
-    Returns
+    戻り値
     -------
     dict
-        target_groupsの情報
+        Elastic Load Balancingに関する情報
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     instance_info_dict = {}
@@ -153,21 +195,19 @@ def _get_instance_info(config, elb_client):
 
 
 def _whether_alarm_has_been_set(config, instance_info_dict, cloudwatch_alarm):
-    """
-    cloudwatchアラーム設定しているかどうかをチェック
+    """CloudWatch アラームが設定されているかどうかを確認
 
-    Parameters
+    パラメーター
     -----------
-
     instance_info_dict : dict
-        インスタンスの一覧
+        インスタンス情報一覧
     cloudwatch_alarm : dict
         アラーム設定一覧
 
-    Returns
+    戻り値
     ----------
-    instances_without_alarm : dict[str,list]
-        アラート設定していないec2
+    dict
+        CloudWatch アラームのないインスタンス
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     temp = {}
@@ -198,25 +238,26 @@ def _whether_alarm_has_been_set(config, instance_info_dict, cloudwatch_alarm):
     return instance_info_dict
 
 
-def _verify_cloudwatch_alarms(config, instance_info_dict, cloudwatch_alarm):
-    """cloudwatchアラーム設定と通知先をチェック
+def _verify_cloudwatch_alarms(
+    config: dict, instance_info_dict: dict, cloudwatch_alarm: boto3.client
+) -> Tuple[dict, dict]:
+    """CloudWatch アラームの設定と宛先を確認
 
-    Parameters
-    -----------
-
-    config : dict
-        elasticacheの設定変数
-    instance_info_dict : dict
-        elasticacheのクラスター名
-    cloudwatch_alarm : dict
-        elasticacheのアラーム設定一覧
-
-    Returns
+    パラメーター
     ----------
-    alarms_with_wrong_destination : dict
-        通知先の間違っているアラート
-    alarms_with_wrong_setting : dict
-        設定の間違っているアラート
+    config : dict
+        設定ファイル
+    instance_info_dict : dict
+        インスタンス情報一覧
+    cloudwatch_alarm : dict
+        CloudWatchアラーム設定一覧
+
+    戻り値
+    -------
+    Tuple[dict, dict]
+        以下を表す辞書のセットを含むTuple:
+        1. 宛先が間違っているアラーム
+        2. 設定が間違っているアラーム
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
 
@@ -246,20 +287,20 @@ def _verify_cloudwatch_alarms(config, instance_info_dict, cloudwatch_alarm):
     return alarms_with_wrong_destination, alarms_with_wrong_setting
 
 
-def _has_effective_alarm_setting(alarm_info, config):
-    """アラートの設定をチェック
+def _has_effective_alarm_setting(alarm_info: dict, config: dict) -> bool:
+    """アラーム設定が有効かを確認
 
-    Parameters
+    パラメーター
     ----------
     alarm_info : dict
-        アラート設定情報
+        アラーム設定情報
     config : dict
         設定ファイル
 
-    Returns
+    戻り値
     -------
     bool
-        アラートの設定が正しいかどうか
+        アラーム設定が正しい場合は True、そうでない場合は False
     """
     metric_names = alarm_info["MetricName"]
 
@@ -268,35 +309,37 @@ def _has_effective_alarm_setting(alarm_info, config):
 
 ########## アラーム付与関連###############################
 def _attach_alarm_for_targetgroup(
-    account_name,
-    namespace,
-    config,
-    cloudwatch_client,
-    alarms_with_wrong_destination,
-    alarms_with_wrong_setting,
-    instances_without_alarm,
-):
-    """アラーム付与
+    account_name: str,
+    namespace: str,
+    config: dict,
+    cloudwatch_client: boto3.client,
+    alarms_with_wrong_destination: dict,
+    alarms_with_wrong_setting: dict,
+    instances_without_alarm: dict,
+) -> Tuple[dict, dict]:
+    """アラームを取り付ける
 
-    Parameters
+    パラメーター
     ----------
     account_name : str
-        アカウント名
+        AWS アカウント名
+    namespace : str
+        名前空間
     config : dict
         設定ファイル
     alarms_with_wrong_destination : dict
-        SNSの設定が間違っているアラーム
+        SNSの宛先設定が正しくないアラーム
     alarms_with_wrong_setting : dict
         設定が間違っているアラーム
-    instance_info_dict : dict
-        アラーム設定しているインスタンス
+    instances_without_alarm : dict
+        アラームが設定されていないインスタンス
 
-    Returns
+    戻り値
     -------
-    setting_success : dict
-        アラーム設定成功したインスタンス
-    setting_fail : dict
-        アラーム設定失敗したインスタンス
+        Tuple[dict, dict]
+        以下を表す辞書のセットを含むタプル:
+            1. アラーム設定が成功した
+            2. アラーム設定に失敗した
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     setting_success, setting_fail, alarm_date = {}, {}, {}
@@ -320,21 +363,23 @@ def _attach_alarm_for_targetgroup(
     return setting_success, setting_fail
 
 
-def _make_alarm_data(account_name, config, instances_without_alarm, alarm_date):
-    """alarmデータの補足
+def _make_alarm_data(
+    account_name: str, config: dict, instances_without_alarm: dict, alarm_date: dict
+) -> dict:
+    """アラームデータを補足
 
-    Parameters
+    パラメーター
     ----------
     account_name : str
-        アカウント名
+        AWS アカウント名
     config : dict
         設定ファイル
-    instance_info_dict : dict
-        アラーム設定していないインスタンス情報
+    instances_without_alarm_dict : dict
+        アラームのないインスタンスに関する情報
     alarm_date : dict
         アラームデータ
 
-    Returns
+    戻り値
     -------
     dict
         アラームデータ
@@ -371,17 +416,17 @@ def _make_alarm_data(account_name, config, instances_without_alarm, alarm_date):
     return alarm_date
 
 
-def _modify_cloudwatch_alarm_date(config, alarms_data):
-    """設定の間違っているアラーム情報を修正
+def _modify_cloudwatch_alarm_date(config: dict, alarms_data: dict) -> dict:
+    """間違ったアラーム設定を変更
 
-    Parameters
+    パラメーター
     ----------
     config : dict
         設定ファイル
     alarm_info_dict : dict
-        設定の間違っているアラーム情報
+        設定間違っているアラームの情報
 
-    Returns
+    戻り値
     -------
     dict
         アラームデータ

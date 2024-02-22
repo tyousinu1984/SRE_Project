@@ -1,0 +1,78 @@
+{
+    "common": {
+        "chatwork": {
+            "room_id_list": [
+                "169315733"
+            ],
+            "api_token": "AQICAHhotR9+T//qqWXi85Zpk4x6bgWHGdLkqSK3H5WDQq1vUQErKYRmtW1Pi8QTdFfkI+0LAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMU6iLGUhlGHhk/IWRAgEQgDt0GKDFWFO6g4LdPSrtDyVbdKUjuTgtDdclI4h2a0DU+mzpLAP/TVA1gIjuKg67MAmXnh1dUI5qQvqn5g=="
+        },
+        "slack": {
+            "slack_url": "https://hooks.slack.com/services/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"
+        },
+        "check_alarm_actions": {
+            "dev": [
+                "arn:aws:sns:ap-northeast-1:343960787291:Infra-Alert-Notification-Dev"
+            ],
+            "prod": [
+                "arn:aws:sns:ap-northeast-1:343960787291:Infra-Alert-Notification"
+            ]
+        },
+        "dev_stage_keywords": [
+            "dev.",
+            "dev-",
+            "-dev",
+            "pre.",
+            "pre-",
+            "tmp-",
+            "temp-",
+            "-temp",
+            "staging"
+        ]
+    },
+    "elasticache": {
+        "send_to_chatwork": false,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "CurrConnections": 200,
+            "Evictions": 40,
+            "CPUUtilization": 40
+        },
+        "cluster_arn_prefix": "arn:aws:elasticache:ap-northeast-1:343960787291:cluster:"
+    },
+    "lambda": {
+        "send_to_chatwork": false,
+        "dev_stag_check": false,
+        "check_metric_names": {
+            "Errors": 1
+        }
+    },
+    "ec2": {
+        "send_to_chatwork": true,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "StatusCheckFailed_System": 0.99,
+            "StatusCheckFailed_Instance": 0.99
+        },
+        "evaluation_periods": 2,
+        "instance_types_to_exclude": [
+            "t1.micro",
+            "m1.small"
+        ]
+    },
+    "rds": {
+        "send_to_chatwork": false,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "CPUUtilization": 64
+        }
+    },
+    "targetgroup": {
+        "send_to_chatwork": true,
+        "dev_stag_check": true,
+        "evaluation_periods": 1,
+        "period": 60,
+        "check_metric_names": {
+            "UnHealthyHostCount": 1
+        }
+    }
+}

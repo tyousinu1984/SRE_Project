@@ -1,0 +1,86 @@
+{
+    "common": {
+        "chatwork": {
+            "room_id_list": [
+                "169315733"
+            ],
+            "api_token": "AQECAHhlpw6/TzWnIlqEtlsarjNEHAAypprdcYitbX3XPNJVdwAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDBfe2HsS26X5QItWHAIBEIA7ITx9cTPMJmNu7tohGobzIWHLkTCtSD+gC6hCSvJlGLklqmBF/lS276dA7+o/zWR1m3D8zhhJh9o+MbU="
+        },
+        "slack": {
+            "slack_url": "https://hooks.slack.com/services/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"
+        },
+        "check_alarm_actions": {
+            "dev": [
+                "arn:aws:sns:ap-northeast-1:840277471863:Infra-Alert-Notification-Dev"
+            ],
+            "prod": [
+                "arn:aws:sns:ap-northeast-1:840277471863:Infra-Alert-Notification"
+            ]
+        },
+        "dev_stage_keywords": [
+            "dev.",
+            "dev-",
+            "-dev",
+            "pre.",
+            "pre-",
+            "tmp-",
+            "temp-",
+            "-temp",
+            "staging",
+            "test"
+        ]
+    },
+    "elasticache": {
+        "send_to_chatwork": false,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "CurrConnections": 200,
+            "Evictions": 40,
+            "CPUUtilization": 40
+        },
+        "cluster_arn_prefix": "arn:aws:elasticache:ap-northeast-1:840277471863:cluster:"
+    },
+    "lambda": {
+        "send_to_chatwork": false,
+        "dev_stag_check": false,
+        "check_metric_names": {
+            "Errors": 1
+        }
+    },
+    "ec2": {
+        "send_to_chatwork": true,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "StatusCheckFailed_System": 0.99,
+            "StatusCheckFailed_Instance": 0.99
+        },
+        "evaluation_periods": 3,
+        "period": 60,
+        "instance_types_to_exclude": [],
+        "check_alarm_actions": {
+            "prod": [
+                "arn:aws:sns:ap-northeast-1:840277471863:alertcoretech"
+            ],
+            "dev": [
+                "arn:aws:sns:ap-northeast-1:840277471863:takazawa_test",
+                "arn:aws:sns:ap-northeast-1:840277471863:infra-test"
+            ]
+        }
+    },
+    "rds": {
+        "send_to_chatwork": false,
+        "dev_stag_check": true,
+        "check_metric_names": {
+            "CPUUtilization": 64
+        }
+    },
+    "targetgroup": {
+        "send_to_chatwork": true,
+        "dev_stag_check": true,
+        "evaluation_periods": 1,
+        "period": 60,
+        "check_metric_names": {
+            "UnHealthyHostCount": 1
+        }
+    }
+}

@@ -5,6 +5,8 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 class LoggerHander(logging.Logger):
+    """カスタマーログ設定"""
+
     def __init__(
         self,
         name="root",
@@ -13,6 +15,22 @@ class LoggerHander(logging.Logger):
         logger_format=LOGGER_FORMAT,
         datefmt=DATE_FORMAT,
     ):
+        """
+        ロガーハンドラーを初期化
+        パラメーター
+        -------
+        name : str
+            ロガーの名前
+        log_level : str
+            ロガーのログレベル
+        file : str
+            ログファイルへのパス None の場合、ログはファイルに書き込まれない
+        logger_format : str
+            ログメッセージの形式
+        datefmt : str
+            ログの日付の形式
+        """
+
         super().__init__(name)
         self.setLevel(log_level)
         formatter = logging.Formatter(fmt=logger_format, datefmt=datefmt)

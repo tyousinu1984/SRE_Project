@@ -25,9 +25,28 @@ s_handler.setFormatter(formatter)
 _logger.addHandler(s_handler)
 
 
-def make_setting_fail_message_text(_ACCOUNT_NAME, service, setting_fail):
+def make_setting_fail_message_text(
+    _ACCOUNT_NAME: str, service: str, setting_fail: dict
+) -> str:
+    """設定失敗時のメッセージテキストを生成
+
+    パラメーター
+    ----------
+    _ACCOUNT_NAME : str
+        アカウント名
+    service : str
+        サービス名
+    setting_fail : dict
+        設定失敗のアラーム
+
+    戻り値
+    ----------
+    str
+        メッセージテキスト
+    """
+
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
-    message = f"{_ACCOUNT_NAME} アカウント {service} アラームの作成・更新は失敗しました。確認してください\n"
+    message = f"{_ACCOUNT_NAME} アカウント {service} アラームの作成・更新は失敗しました確認してください\n"
 
     for alarm_info, reason in setting_fail.items():
         message += f"   AlarmName: {alarm_info['AlarmName']}"
@@ -37,7 +56,25 @@ def make_setting_fail_message_text(_ACCOUNT_NAME, service, setting_fail):
     return message
 
 
-def make_setting_success_message_text(_ACCOUNT_NAME, service, setting_success):
+def make_setting_success_message_text(
+    _ACCOUNT_NAME: str, service: str, setting_success: dict
+) -> str:
+    """設定成功のメッセージテキストを生成
+
+    パラメーター
+    ----------
+    _ACCOUNT_NAME :str
+        アカウント名
+    service : str
+        サービス名
+    setting_success : dict
+        設定成功のアラーム
+
+    戻り値
+    ----------
+    str
+        メッセージテキスト
+    """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     message = f" {_ACCOUNT_NAME} アカウント {service} アラーム付与\n"
 
@@ -57,12 +94,32 @@ def make_setting_success_message_text(_ACCOUNT_NAME, service, setting_success):
 
 
 def make_message_for_alart_check(
-    _ACCOUNT_NAME,
-    service,
-    alarms_with_wrong_destination,
-    alarms_with_wrong_setting,
-    instances_without_alarm,
-):
+    _ACCOUNT_NAME: str,
+    service: str,
+    alarms_with_wrong_destination: dict,
+    alarms_with_wrong_setting: dict,
+    instances_without_alarm: dict,
+) -> str:
+    """アラームチェック用のメッセージテキストを生成
+
+    パラメーター
+    ----------
+    _ACCOUNT_NAME : str
+        アカウント名
+    service : str
+        サービス名
+    alarms_with_wrong_destination : dict
+        間違った宛先のアラーム
+    alarms_with_wrong_setting : dict
+        間違った設定のアラーム
+    instances_without_alarm : dict
+        アラームのないインスタンス
+
+    戻り値
+    ----------
+    str
+        メッセージテキスト
+    """
     title = f"【{_ACCOUNT_NAME}】{service} のCloudWatchアラーム確認\n"
     message_text = ""
 
@@ -88,7 +145,9 @@ def make_message_for_alart_check(
                     message_text += "     recoverが含まれない\n"
 
             message_text += f"     Periodは {alarm_info.get('Period','設定なし')}\n"
-            message_text += f"     Thresholdは {alarm_info.get('Threshold','設定なし')}\n"
+            message_text += (
+                f"     Thresholdは {alarm_info.get('Threshold','設定なし')}\n"
+            )
             message_text += f"     EvaluationPeriodsは {alarm_info.get('EvaluationPeriods','設定なし')}\n"
             message_text += f"     ComparisonOperatorは {alarm_info.get('ComparisonOperator','設定なし')}\n"
             message_text += "\n"
@@ -100,13 +159,30 @@ def make_message_for_alart_check(
         message_text += "\n"
 
     if message_text == "":
-        message_text += f"アラームチェックをしたよ!\nアラームをつけてない{service}はなかったよ！"
+        message_text += (
+            f"アラームチェックをしたよ!\nアラームをつけてない{service}はなかったよ！"
+        )
 
     message_text = f"{title}{message_text}"
     return message_text
 
 
-def _send_chatwork(room_id_list, api_token, message):
+def _send_chatwork(room_id_list: list, api_token: str, message: str):
+    """チャットワークにメッセージを送信
+
+    パラメーター
+    ----------
+    room_id_list : list
+        ルームIDのリスト
+    api_token : str
+        チャットワークAPIトークン
+    message : str
+        メッセージテキスト
+
+    戻り値
+    ----------
+    なし
+    """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     try:
         for room_id in room_id_list:
@@ -131,7 +207,22 @@ def _send_chatwork(room_id_list, api_token, message):
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def _send_slack(slack_url, title, text):
+def _send_slack(slack_url: str, title: str, text: str):
+    """Send message to Slack.
+
+    パラメーター
+    ----------
+    slack_url : str
+        Slack webhook URL
+    title : str
+        メッセージのタイトル
+    text : str
+        メッセージテキスト
+
+    戻り値
+    ----------
+    なし
+    """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
 
     attachments = []
@@ -144,7 +235,20 @@ def _send_slack(slack_url, title, text):
     _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def send_message(config, message_text):
+def send_message(config: dict, message_text: str):
+    """設定に基づいてメッセージを Chatwork または Slack に送信
+
+    パラメーター
+    ----------
+    config : dict
+        設定変数
+    message_text : str
+        メッセージテキスト
+
+    戻り値
+    ----------
+    なし
+    """
     message_list = message_text.split("\n")
 
     title = message_list[0]

@@ -3,6 +3,7 @@ import os
 import sys
 import traceback
 from base64 import b64decode
+from typing import Tuple
 
 import boto3
 from resources import (
@@ -21,21 +22,48 @@ _LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")
 _logger = log_handler.LoggerHander(log_level=_LOG_LEVEL)
 
 _HANDLER = {
-    "ec2": {"handler": handler_of_ec2.check_for_ec2, "client": "ec2"},
+    "ec2": {
+        "handler": handler_of_ec2.check_for_ec2,
+        "client": "ec2",
+        "namespace": "AWS/EC2",
+    },
     "elasticache": {
         "handler": handler_of_elasticache.check_for_elasticache,
         "client": "elasticache",
+        "namespace": "AWS/ElastiCache",
     },
-    "lambda": {"handler": handler_of_lambda.check_for_lambda, "client": "lambda"},
-    "rds": {"handler": handler_of_rds.check_for_rds, "client": "rds"},
+    "lambda": {
+        "handler": handler_of_lambda.check_for_lambda,
+        "client": "lambda",
+        "namespace": "AWS/Lambda",
+    },
+    "rds": {
+        "handler": handler_of_rds.check_for_rds,
+        "client": "rds",
+        "namespace": "AWS/RDS",
+    },
     "targetgroup": {
         "handler": handler_of_targetgroup.check_for_targetgroup,
         "client": "elbv2",
+        "namespace": "AWS/ApplicationELB",
     },
 }
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, context: object):
+    """Lambdaの呼び出しを処理
+
+    パラメーター
+    ----------
+    event : dict:
+        Lambda 関数に渡されるイベントデータ
+    context : object
+        Lambda 関数のランタイム情報
+
+    戻り値
+    -------
+    なし
+    """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     try:
         service = event.get("service")
@@ -47,10 +75,10 @@ def lambda_handler(event, context):
         _ACCOUNT_NAME = os.environ.get("ACCOUNT")
         # _PROFILE_NAMEはローカルテスト時だけ使う
         _PROFILE_NAME = os.environ.get("PROFILE_NAME")
-        cloudwatch_client, kms_client, client = create_clients(_PROFILE_NAME, service)
+        (cloudwatch_client, kms_client, client) = create_clients(_PROFILE_NAME, service)
 
         config = _find_config(_CONFIG_FILE_NAME, kms_client, service)
-
+        namespace = _HANDLER[service]["namespace"]
         (
             alarms_with_wrong_destination,
             alarms_with_wrong_setting,
@@ -58,7 +86,7 @@ def lambda_handler(event, context):
             setting_success,
             setting_fail,
         ) = _HANDLER[service]["handler"](
-            _ACCOUNT_NAME, config, cloudwatch_client, client
+            _ACCOUNT_NAME, namespace, config, cloudwatch_client, client
         )
 
         message_text = notify_message.make_message_for_alart_check(
@@ -94,7 +122,26 @@ def lambda_handler(event, context):
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def create_clients(_PROFILE_NAME, service):
+def create_clients(
+    _PROFILE_NAME: str, service: str
+) -> Tuple[boto3.client, boto3.client, boto3.client]:
+    """AWS クライアントを作成
+
+    パラメーター
+    ----------
+    _PROFILE_NAME : str
+        AWS プロファイル名
+    service : str
+        AWSのサービス名
+
+    戻り値
+    ----------
+    Tuple[boto3.client, boto3.client, boto3.client]
+        AWS クライアント オブジェクトを含むタプル
+        1.CloudWatchクライアント
+        2.KMSクライアント
+        3. イベントから取得するサービスのクライアント
+    """
     if _PROFILE_NAME is None:
         cloudwatch_client = boto3.client("cloudwatch", region_name=REGION_NAME)
         kms_client = boto3.client("kms", region_name=REGION_NAME)
@@ -106,23 +153,24 @@ def create_clients(_PROFILE_NAME, service):
         kms_client = session.client("kms")
         client = session.client(_HANDLER[service]["client"])
 
-    return cloudwatch_client, kms_client, client
+    return (cloudwatch_client, kms_client, client)
 
 
 def _find_config(_CONFIG_FILE_NAME, kms_client, service):
-    """configファイルの情報を取得
-
-    Parameters
+    """設定ファイルを読み取り
+    パラメーター
     ----------
     _CONFIG_FILE_NAME : str
-        設定ファイルのパース
-    service : str
-        AWSのサービス
+        設定ファイルの名前。
+     kms_client: boto3.client
+        KMS クライアント オブジェクト。
+     サービス: str
+        AWS のサービス名。
 
-    Returns
-    -------
+    戻り値
+    ----------
     dict
-        Config情報の配列
+        設定ファイル
     """
 
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
@@ -144,7 +192,21 @@ def _find_config(_CONFIG_FILE_NAME, kms_client, service):
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def _dict_merge(d1, d2):
+def _dict_merge(d1: dict, d2: dict) -> dict:
+    """辞書を再帰的に結合
+
+    パラメーター
+    ----------
+    d1 : dict
+        一番目の辞書。
+    d2 : dict
+        二番目の辞書。
+
+    戻り値
+    ----------
+    dict
+        結合された辞書
+    """
     if isinstance(d1, dict) and (d2, dict):
         return {
             **d1,

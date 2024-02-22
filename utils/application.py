@@ -1,21 +1,28 @@
 import sys
 import traceback
+from typing import Tuple
 
+import boto3
 from utils import log_handler
 
 _logger = log_handler.LoggerHander()
 
 
-def put_metric_alarm(cloudwatch_client, alarm_info, namespace):
-    """アラーム設定を更新・作成
+def put_metric_alarm(cloudwatch_client: boto3.client, alarm_info: dict, namespace: str):
+    """アラーム設定を更新または作成する
 
-    Parameters
+    パラメーター
     ----------
-    cloudwatch_client :
-        cloudwatchのクライアント
+    cloudwatch_client : boto3.client
+        CloudWatch クライアント
     alarm_info : dict
-        アラームデータ
+         アラームデータ
+    namespace : str
+         名前空間
 
+    戻り値
+    -------
+    なし
     """
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
 
@@ -48,19 +55,22 @@ def put_metric_alarm(cloudwatch_client, alarm_info, namespace):
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def get_cloudwatch_alarm(cloudwatch_client, namespace) -> dict:
-    """cloudwatch_alarmを取得
+def get_cloudwatch_alarm(cloudwatch_client: boto3.client, namespace: str) -> dict:
+    """CloudWatchのアラームを取得する
 
-    Parameters
-    -----------
-    cloudwatch_client:
-        cloudwatchのclientオブジェクト
+    パラメーター
+    -------
+    cloudwatch_client : boto3.client
+        CloudWatch クライアント
+    namespace : str
+        名前空間
 
-    Returns
-    ----------
-    cloudwatch_alarm : dict{str,dict}
-        アラーム設定一覧
+    戻り値
+    -------
+    dict
+        アラーム設定を収録した辞書です
     """
+
     _logger.info(f"{sys._getframe().f_code.co_name} Start.")
     try:
         cloudwatch_alarm = {}
@@ -90,17 +100,17 @@ def get_cloudwatch_alarm(cloudwatch_client, namespace) -> dict:
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def get_stage_keywords(config, name):
-    """インスタンスのステージを判断
+def get_stage_keywords(config: dict, name: str) -> str:
+    """インスタンスのステージを決定
 
-    Parameters
-    ----------
+    パラメーター
+    -------
     config : dict
-        設定ファイル
-    alarm_name : str
-        アラート名
+        設定変数
+    name : str
+        アラーム名
 
-    Returns
+    戻り値
     -------
     str
         ステージ
@@ -113,21 +123,22 @@ def get_stage_keywords(config, name):
     return stage
 
 
+def has_valid_action(config: dict, stage: str, alarm: dict) -> bool:
+    """指定されたアラームに有効なアクションがあるかどうかを確認
 
-def has_valid_action(config, stage, alarm):
-    """指定したアラームが有効なアクションを指定しているかを確認する。
-
-    Parameters
-    -------------------
+    パラメーター
+    -------
     config : dict
-        elasticacheの設定変数
+        設定変数
     stage : str
         アラームのステージ
     alarm : dict
-        検証すべきアラーム
-    Returns
-    ------
-    bool
+        検証するアラーム
+
+    戻り値
+    -------
+    bool:
+        アラームに有効なアクションがある場合は True、それ以外の場合は False
     """
     for alarmAction in alarm["AlarmActions"]:
         if stage == "prod":
