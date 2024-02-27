@@ -207,34 +207,6 @@ def _send_chatwork(room_id_list: list, api_token: str, message: str):
         _logger.info(f"{sys._getframe().f_code.co_name} End.")
 
 
-def _send_slack(slack_url: str, title: str, text: str):
-    """Send message to Slack.
-
-    パラメーター
-    ----------
-    slack_url : str
-        Slack webhook URL
-    title : str
-        メッセージのタイトル
-    text : str
-        メッセージテキスト
-
-    戻り値
-    ----------
-    なし
-    """
-    _logger.info(f"{sys._getframe().f_code.co_name} Start.")
-
-    attachments = []
-    attachment = {"title": title, "text": text, "mrkdwn_in": ["text"]}
-
-    slack = slackweb.Slack(url=slack_url)
-    attachments.append(attachment)
-    slack.notify(attachments=attachments)
-
-    _logger.info(f"{sys._getframe().f_code.co_name} End.")
-
-
 def send_message(config: dict, message_text: str):
     """設定に基づいてメッセージを Chatwork または Slack に送信
 
@@ -254,13 +226,11 @@ def send_message(config: dict, message_text: str):
     title = message_list[0]
     text = "\n".join(message_list[1:])
 
-    if config["send_to_chatwork"]:
-        message_text = f"[info][title]{title}[/title]\n{text}[/info]"
-        _send_chatwork(
-            config["chatwork"]["room_id_list"],
-            config["chatwork"]["api_token"],
-            message_text,
-        )
-    else:
-        _send_slack(config["slack"]["slack_url"], title, text)
+    message_text = f"[info][title]{title}[/title]\n{text}[/info]"
+    _send_chatwork(
+        config["chatwork"]["room_id_list"],
+        config["chatwork"]["api_token"],
+        message_text,
+    )
+
     time.sleep(0.3)
