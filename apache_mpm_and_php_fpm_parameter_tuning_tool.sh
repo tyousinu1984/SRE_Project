@@ -21,15 +21,19 @@ ROUND() {
 
     echo "scale=$num_digits; $value" | bc
 }
+php_child_process_magnification="${1:-1}"
+apache_child_process_magnification="${1:-1}"
+
 
 total_memory=$(free -m | grep Mem | awk '{print $2}')
 
 # PHP子プロセスの中メモリ使用率 (MB)
 php_child_process_medium_memory=$(ps aux | grep php | awk '{print $6}' | sort -nr | awk '{sum+=$1}END{print sum/NR/1024}')
+
 # PHP 許容するメモリ使用量率
 php_allowable_memory_rate=0.6
 # PHP 許容するメモリ使用量(MB)
-php_allowable_memory=$(echo "$total_memory * $php_allowable_memory_rate" | bc)
+php_allowable_memory=$(echo "$total_memory * $php_allowable_memory_rate * $php_child_process_magnification" | bc)
 # PHPの１子プロセスのメモリ使用量(MB)
 php_child_process_memory=$(CEILING $php_child_process_medium_memory)
 echo "PHPの１子プロセスのメモリ使用量(MB): $php_child_process_memory"
@@ -39,7 +43,7 @@ apache_child_process_medium_memory=$(ps aux | grep httpd | awk '{print $6}' | so
 # Apache 許容するメモリ使用量率
 apache_allowable_memory_rate=0.1
 # Apache 許容するメモリ使用量(MB)
-apache_allowable_memory=$(echo "$total_memory * $apache_allowable_memory_rate" | bc)
+apache_allowable_memory=$(echo "$total_memory * $apache_allowable_memory_rate * $apache_child_process_magnification$" | bc)
 # Apacheの１子プロセスのメモリ使用量(MB)
 apache_child_process_memory=$(CEILING $apache_child_process_medium_memory)
 echo "Apacheの１子プロセスのメモリ使用量(MB): $apache_child_process_memory"
