@@ -1,0 +1,21 @@
+# 本番環境用
+ # 以下、CloudFormation 用テンプレートそのまま（一部ファイル内参照を利用）
+  Resources:
+    # 本番環境用アラーム 
+    LambdaFunctionErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:provider.tags.accountName}-lambda-${self:service}-prod-main-Error
+        Namespace: AWS/Lambda
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:service}-prod-main
+        MetricName: Errors
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        Period: 300
+        EvaluationPeriods: 1
+        Statistic: Maximum
+        Threshold: 1
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - arn:aws:sns:${self:provider.region}:${self:custom.accountID.${self:provider.tags.accountName}}:Infra-Alert-Notification

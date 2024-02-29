@@ -1,0 +1,15 @@
+[default]
+region = ap-northeast-1
+output=json
+
+[profile orien_dev]
+role_arn = arn:aws:iam::111111111111:role/dev_role
+source_profile = default
+role_session_name = SESSION_NAME
+
+
+[profile orien_prod]
+role_arn = arn:aws:iam::111111111111:role/prod_role
+source_profile = default
+role_session_name = SESSION_NAME
+

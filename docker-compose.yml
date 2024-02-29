@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  python:
+    build:
+      context: ./dockerfiles
+      # https://matsuand.github.io/docs.docker.jp.onthefly/compose/compose-file/compose-file-v3/
+      args:
+        # ローカル環境の実行ユーザーに合わせる
+        - UID=1000
+        - GID=1000
+    volumes:
+      - type: bind
+      # このディレクトリは必要に応じて適宜変える
+        source: ./$DIR_NAME
+        # ここは固定
+        target: /home/serverless/app
+    environment:
+        - TZ=Asia/Tokyo
+        - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+        - AWS_SDK_LOAD_CONFIG=1
+    tty: true

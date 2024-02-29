@@ -1,0 +1,11 @@
+# no-deploy packages
+
+# lambda defalut
+boto3
+botocore
+# linter
+flake8
+black
+isort
+mypy
+bandit

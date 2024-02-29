@@ -1,0 +1,18 @@
+# 各 AWS アカウント固有の設定をまとめたもの
+# 引数 `--acount_name name` で指定した名前に対応する値を利用する
+  # AWS アカウントID
+  accountID:
+    core: 111111111111
+    orien: 222222222222
+
+  # デフォルトの Lambda 実行 IAM ロール
+  # 引数 `--role_str` で上書きされる
+  execRole:
+    core: "arn:aws:iam::111111111111:role/lambda-basic"
+    orien: "arn:aws:iam::222222222222:role/lambda-basic"
+  # アーティファクト置き場となる S3 バケット
+  # 引数 `--depbucket` で上書きされる
+  bucket:
+    core: cor-infra-bucket
+    orien: orien-infra-bucket
+
